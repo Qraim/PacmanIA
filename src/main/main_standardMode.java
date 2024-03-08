@@ -24,12 +24,12 @@ public class main_standardMode {
 		///// Paramétrage à modifier ici : choix du niveau et de la stratégie
 	
 		////Choix du niveau
-		int level = 1;
+		int level = 2;
 		
 		
 		////Choix de la strategie du pacman 
 		
-		int strategyID = 1;
+		int strategyID = 2;
 		
 		// 0 : Tabular_Qlearning
 		// 1 : Approximate Qlearning with linear model

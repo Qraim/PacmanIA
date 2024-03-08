@@ -1,8 +1,9 @@
 package agent;
 
 public class AgentAction {
-	
-	
+
+
+	public static final int NUMBER_OF_ACTIONS = 5;
 	// Vecteur de deplacement qui sera utile pour realiser l'action dans le jeu
 	private int _vx;
 	private int _vy;

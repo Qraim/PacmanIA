@@ -131,11 +131,4 @@ public class TabularQLearning  extends QLearningStrategy{
 
 
 	}
-
-
-
-
-
-
-
 }
