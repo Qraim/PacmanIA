@@ -491,4 +491,9 @@ public class PacmanGame extends Game  {
 		return this.nbFood;
 	}
 
+	public int getNbTourInvincible() {
+		return nb_tour_invincible;
+	}
+
+
 }

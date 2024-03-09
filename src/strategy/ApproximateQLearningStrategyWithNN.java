@@ -2,24 +2,19 @@ package strategy;
 
 import agent.Agent;
 import agent.AgentAction;
+import agent.PositionAgent;
+import motor.Maze;
 import motor.PacmanGame;
+import neuralNetwork.NeuralNetWorkDL4J;
 import neuralNetwork.TrainExample;
-import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
-import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.OutputLayer;
-import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
-import org.nd4j.linalg.activations.Activation;
-import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.learning.config.Adam;
-import org.nd4j.linalg.lossfunctions.LossFunctions;
+
 
 import java.util.ArrayList;
 import java.util.Random;
 
 public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 
-	private MultiLayerNetwork nn;
+	private NeuralNetWorkDL4J nn;
 	private int nEpochs;
 	private int batchSize;
 
@@ -29,95 +24,155 @@ public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 		this.nEpochs = nEpochs;
 		this.batchSize = batchSize;
 
-		int numInputs = 7; // Nombre de caractéristiques extraites
-		int numOutputs = 4; // Nombre d'actions possibles
-		int numHiddenNodes = 10; // Exemple arbitraire de taille pour la couche cachée
+		this.nEpochs = nEpochs;
+		this.batchSize = batchSize;
 
-		org.deeplearning4j.nn.conf.MultiLayerConfiguration nnConfig = new NeuralNetConfiguration.Builder()
-				.updater(new Adam(alpha))
-				.list()
-				.layer(0, new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodes)
-						.activation(Activation.RELU)
-						.build())
-				.layer(1, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
-						.activation(Activation.IDENTITY)
-						.nIn(numHiddenNodes).nOut(numOutputs)
-						.build())
-				.build();
 
-		this.nn = new MultiLayerNetwork(nnConfig);
-		this.nn.init();
+		this.nn=new NeuralNetWorkDL4J(alpha,0,6,1);
 	}
 
 	@Override
 	public AgentAction chooseAction(PacmanGame state) {
-		INDArray features = Nd4j.create(extractFeatures(state, new AgentAction(0))); // Ajustez cela pour chaque action possible si nécessaire
-		INDArray output = nn.output(features);
-		int actionIndex = Nd4j.argMax(output, 1).getInt(0);
-		return new AgentAction(actionIndex);
+		ArrayList<AgentAction> legalActions = new ArrayList<AgentAction>();
+
+		Maze maze = state.getMaze();
+
+		AgentAction actionChoosen = new AgentAction(0);
+
+
+		for(int i =0; i < 4; i++) {
+
+			AgentAction action = new AgentAction(i);
+
+			if(!maze.isWall(state.pacman.get_position().getX() + action.get_vx(),
+					state.pacman.get_position().getY() + action.get_vy())) {
+
+				legalActions.add(action);
+			}
+
+		}
+
+
+		if(Math.random() < this.current_epsilon){
+
+			actionChoosen = legalActions.get((int) Math.floor(Math.random() * legalActions.size()));
+
+		} else {
+
+			double maxQvalue = -9999;
+
+			int trouve = 1;
+
+			for(AgentAction action : legalActions) {
+
+				double[] features = extractFeatures(state, action);
+				double qValue = this.nn.predict(features)[0];
+
+				if(qValue > maxQvalue) {
+					maxQvalue = qValue;
+					actionChoosen = action;
+					trouve = 1;
+				} else if(qValue == maxQvalue) {
+					trouve += 1;
+
+					if(Math.floor(trouve*Math.random())== 0) {
+						maxQvalue = qValue;
+						actionChoosen = action;
+					}
+				}
+			}
+		}
+		return actionChoosen;
 	}
-
-
 
 	@Override
 	public void update(PacmanGame state, PacmanGame nextState, AgentAction action, double reward, boolean isFinalState) {
-		INDArray currentStateFeatures = Nd4j.create(extractFeatures(state, action)).reshape(1, -1); // Ajustement pour garantir que les données sont au format matrice.
-		INDArray currentQValues = nn.output(currentStateFeatures);
+		double[] targetQ=new double[1];
 
-		double maxNextQ = isFinalState ? 0 : Double.NEGATIVE_INFINITY;
-		for (int a = 0; a < AgentAction.NUMBER_OF_ACTIONS; a++) {
-			AgentAction nextAction = new AgentAction(a);
-			INDArray nextStateFeatures = Nd4j.create(extractFeatures(nextState, nextAction)).reshape(1, -1); // Ajustement similaire pour les caractéristiques de l'état suivant.
-			INDArray nextQValues = nn.output(nextStateFeatures);
-			maxNextQ = Math.max(maxNextQ, nextQValues.maxNumber().doubleValue());
+		if(isFinalState) {
+
+			targetQ[0] = reward;
+
+		} else {
+
+			double maxQnext = getMaxQNext(nextState);
+			targetQ[0] = reward + this.gamma*maxQnext;
+
 		}
 
-		int actionIndex = action.get_idAction();
-		double targetQ = reward + gamma * maxNextQ;
-		currentQValues.putScalar(new int[]{0, actionIndex}, targetQ);
-
-		nn.fit(currentStateFeatures, currentQValues); // Assurez-vous que les deux INDArrays sont bien dimensionnés.
+		double[] features = extractFeatures(state, action);
+		this.trainExamples.add(new TrainExample(features,targetQ));
 	}
 
 
+	public double getMaxQNext(PacmanGame game) {
+
+		PositionAgent nextPos = game.pacman._position;
+		Maze maze = game.getMaze();
+
+		double maxQvalue = -99999;
+
+		for(int i =0; i < 4; i++) {
+
+
+			AgentAction action = new AgentAction(i);
+			if(!maze.isWall(nextPos.getX() + action.get_vx(),
+					nextPos.getY() + action.get_vy())) {
+
+				double[] features = extractFeatures( game, action);
+				double qValue = this.nn.predict(features)[0];;
+
+				if(qValue > maxQvalue) {
+
+					maxQvalue = qValue;
+
+				}
+
+			}
+
+		}
+
+		return maxQvalue;
+
+	}
 
 	@Override
 	public void learn(ArrayList<TrainExample> trainExamples) {
-		// L'apprentissage du réseau à partir des exemples collectés doit être implémenté ici
+		nn.fit(trainExamples, nEpochs, batchSize,this.learningRate);
 	}
-	private double[][] extractFeatures(PacmanGame state, AgentAction action) {
-		double[][] features = new double[1][7]; // Créez un tableau 2D avec 1 ligne et 7 colonnes
+	private double[] extractFeatures(PacmanGame state, AgentAction action) {
+		double[] features = new double[7];
 
-		int nextX = state.getPacmanPosition().getX() + action.get_vx();
-		int nextY = state.getPacmanPosition().getY() + action.get_vy();
+		features[0] = 1;
 
-		features[0][0] = calculateDistanceToNearestGhost(state, nextX, nextY);
-		features[0][1] = state.getNbFood();
-		features[0][2] = state.isCapsuleAtPosition(nextX, nextY) ? 1 : 0;
-		features[0][3] = state.isWallAtPosition(nextX, nextY) ? 1 : 0;
-		features[0][4] = state.isGhostsScarred() ? 1 : 0;
-		features[0][5] = state.isLegalMovePacman(action) ? 1 : 0; // Assurez-vous que cette vérification est cohérente avec votre implémentation
-		features[0][6] = state.isGumAtPosition(nextX, nextY) ? 1 : 0;
+		Maze maze = state.getMaze();
+
+		int x = state.pacman._position.getX();
+		int y = state.pacman._position.getY();
+
+		int new_x = x + action.get_vx();
+		int new_y = y + action.get_vy();
+
+		if(maze.isFood(new_x, y + action.get_vy())) {
+			features[1] = 1;
+		}
+
+		if(maze.isCapsule(new_x, new_y)) {
+			features[2]=1;
+		}
+
+		if(state.getNbTourInvincible()>1) {
+			features[3]=countGhostsAround(new_x,new_y,state);
+		}else{
+			features[4]=countGhostsAround(new_x,new_y,state);
+		}
+
+		features[5]=nbCoupsProchainePacgomme(state,new_x,new_y);
+
+		features[6]=state.getNbTourInvincible();
+
 
 		return features;
 	}
-
-
-	private double calculateDistanceToNearestGhost(PacmanGame state, int nextX, int nextY) {
-		double nearestDistance = Double.MAX_VALUE;
-
-		for ( Agent ghost : state.get_agentsFantom()) {
-			int ghostX = ghost.get_position().getX();
-			int ghostY = ghost.get_position().getY();
-
-			double distance = Math.abs(nextX - ghostX) + Math.abs(nextY - ghostY);
-
-			if (distance < nearestDistance) {
-				nearestDistance = distance;
-			}
-		}
-		return nearestDistance;
-	}
-
 
 }

@@ -5,6 +5,8 @@ import java.util.Random;
 
 import agent.Agent;
 import agent.AgentAction;
+import agent.PositionAgent;
+import motor.Maze;
 import motor.PacmanGame;
 import neuralNetwork.TrainExample;
 
@@ -14,114 +16,181 @@ public class ApproximateQLearningStrategy extends QLearningStrategy {
 
 	public ApproximateQLearningStrategy(double epsilon, double gamma, double alpha, int sizeMazeX, int sizeMazeY) {
 		super(epsilon, gamma, alpha, sizeMazeX, sizeMazeY);
-		int numberOfFeatures = 7; // Update this if the number of features changes
+		int numberOfFeatures = 6;
 		this.weights = new double[numberOfFeatures];
 
-		// Initialize weights with random values
+		// Initialisation des poids avec des valeurs aléatoires entre -1 et 1
 		for (int i = 0; i < this.weights.length; i++) {
-			this.weights[i] = rand.nextDouble() * 2 - 1; // values between -1 and 1
+			this.weights[i] = rand.nextDouble() * 2 - 1;
 		}
 	}
 
 	@Override
 	public AgentAction chooseAction(PacmanGame state) {
-		if (rand.nextDouble() < current_epsilon) {
-			// Explore: choose a random action
-			return new AgentAction(rand.nextInt(AgentAction.NUMBER_OF_ACTIONS));
-		} else {
-			// Exploit: choose the best action based on current knowledge
-			double bestValue = Double.NEGATIVE_INFINITY;
-			AgentAction bestAction = null;
+		ArrayList<AgentAction> legalActions = new ArrayList<AgentAction>(); // Actions légales possibles
+		Maze maze = state.getMaze(); // Le labyrinthe du jeu
+		AgentAction actionChoosen = new AgentAction(0); // Action choisie
 
-			for (int a = 0; a < AgentAction.NUMBER_OF_ACTIONS; a++) {
-				double[] features = extractFeatures(state, new AgentAction(a));
-				double value = computeQValue(features);
-
-				if (value > bestValue) {
-					bestValue = value;
-					bestAction = new AgentAction(a);
-				}
+		// Vérification des actions légales (ne menant pas à un mur)
+		for(int i =0; i < 4; i++) {
+			AgentAction action = new AgentAction(i);
+			if(!maze.isWall(state.pacman.get_position().getX() + action.get_vx(),
+					state.pacman.get_position().getY() + action.get_vy())) {
+				legalActions.add(action);
 			}
-			return bestAction;
 		}
+		// Choix aléatoire d'une action si un nombre aléatoire est inférieur à epsilon (exploration)
+		if(Math.random() < this.current_epsilon){
+			actionChoosen = legalActions.get((int) Math.floor(Math.random() * legalActions.size()));
+		} else {
+			// Sinon, choisir l'action maximisant la valeur Q estimée (exploitation)
+			double maxQvalue = -9999;
+
+			int trouve = 1;
+
+			for(AgentAction action : legalActions) {
+
+				double[] features = extractFeatures(state, action);
+				double qValue = perceptron(weights, features);
+
+				// Mise à jour de l'action choisie si la valeur Q est supérieure à la valeur Q maximale actuelle
+				if(qValue > maxQvalue) {
+
+					maxQvalue = qValue;
+					actionChoosen = action;
+					trouve = 1;
+
+				} else if(qValue == maxQvalue) {
+					// En cas d'égalité, choisir aléatoirement entre les actions équivalentes
+					trouve += 1;
+
+					if(Math.floor(trouve*Math.random())== 0) {
+						maxQvalue = qValue;
+						actionChoosen = action;
+					}
+
+				}
+
+			}
+
+		}
+
+		return actionChoosen;
 	}
 
 	@Override
 	public void update(PacmanGame state, PacmanGame nextState, AgentAction action, double reward, boolean isFinalState) {
-		double[] features = extractFeatures(state, action);
-		double qValue = computeQValue(features);
 
-		double maxNextQValue = isFinalState ? 0 : maxValue(nextState);
-		double targetQ = reward + gamma * maxNextQValue;
 
-		// Mise à jour des poids par descente de gradient
-		for (int i = 0; i < this.weights.length; i++) {
-			// Calcul de la dérivée de l'erreur par rapport à chaque poids
-			double gradient = features[i] * (qValue - targetQ);
-			// Mise à jour du poids
-			this.weights[i] -= learningRate * gradient;
+		double targetQ;
+
+		// Si c'est un état final, la valeur cible Q est simplement la récompense
+		if(isFinalState) {
+
+			targetQ = reward;
+
+		} else {
+
+			// Sinon, calculer la valeur cible Q avec la récompense et la meilleure valeur Q future estimée
+			double maxQnext = getMaxQNext(nextState);
+
+			targetQ = reward + this.gamma*maxQnext;
+
 		}
+
+		// Mise à jour des poids avec la règle de mise à jour de l'apprentissage par renforcement
+		double[] features = extractFeatures(state, action); // Extraction des caractéristiques
+		double qValue = perceptron(weights, features); // Calcul de la valeur Q actuelle
+
+		for(int i =0; i < this.weights.length; i ++) {
+
+			// Mise à jour des poids avec le taux d'apprentissage et l'erreur (différence entre la valeur Q cible et actuelle)
+			this.weights[i] = this.weights[i] - 2*this.learningRate*features[i]*(qValue - targetQ);
+
+		}
+
+
+	}
+	public double perceptron(double[] weights, double[] features) {
+
+		double results = 0;
+
+		for(int i =0; i < weights.length; i++) {
+			results += weights[i]*features[i];
+		}
+
+		return results;
 	}
 
+	public double getMaxQNext(PacmanGame game) {
+		PositionAgent nextPos = game.pacman._position;
+		Maze maze = game.getMaze();
+		double maxQvalue = -99999;
+		for(int i =0; i < 4; i++) {
+			AgentAction action = new AgentAction(i);
+			if(!maze.isWall(nextPos.getX() + action.get_vx(),
+					nextPos.getY() + action.get_vy())) {
 
-	private double maxValue(PacmanGame state) {
-		double maxQValue = Double.NEGATIVE_INFINITY;
+				double[] features = extractFeatures(game, action);
+				double qValue = perceptron(weights, features);
 
-		for (int a = 0; a < AgentAction.NUMBER_OF_ACTIONS; a++) {
-			double[] features = extractFeatures(state, new AgentAction(a));
-			double qValue = computeQValue(features);
+				// Mise à jour de la valeur Q maximale si nécessaire
+				if(qValue > maxQvalue) {
 
-			if (qValue > maxQValue) {
-				maxQValue = qValue;
+					maxQvalue = qValue;
+
+				}
 			}
 		}
-		return maxQValue;
+		return maxQvalue;
 	}
 
-	private double computeQValue(double[] features) {
-		double qValue = 0;
-		for (int i = 0; i < features.length; i++) {
-			qValue += this.weights[i] * features[i];
-		}
-		return qValue;
-	}
-
+	// Méthode pour extraire les caractéristiques d'un état et d'une action
 	private double[] extractFeatures(PacmanGame state, AgentAction action) {
-		double[] features = new double[7]; // Ensure the size matches the number of features
 
-		int nextX = state.getPacmanPosition().getX() + action.get_vx();
-		int nextY = state.getPacmanPosition().getY() + action.get_vy();
 
-		features[0] = calculateDistanceToNearestGhost(state, nextX, nextY);
-		features[1] = state.getNbFood();
-		features[2] = state.isCapsuleAtPosition(nextX, nextY) ? 1 : 0;
-		features[3] = state.isWallAtPosition(nextX, nextY) ? 1 : 0;
-		features[4] = state.isGhostsScarred() ? 1 : 0;
-		features[5] = state.isLegalMovePacman(action) ? 1 : 0;
-		features[6] = state.isGumAtPosition(nextX, nextY) ? 1 : 0;
+		double[] features = new double[6];
+
+		features[0] = 1;
+
+		Maze maze = state.getMaze();
+
+		int x = state.pacman._position.getX();
+		int y = state.pacman._position.getY();
+
+		int new_x = x + action.get_vx();
+		int new_y = y + action.get_vy();
+
+		/*
+		 * 1 : Si mange une pacgomme (0 ou 1)
+		 * 2: Si mange une capsule (0 ou 1)
+		 * 3 : Nombre de fantômes autour de la case cible quand Pacman est invulnérable
+		 * 4: Nombre de fantômes autour de la case cible quand Pacman est vulnérable
+		 * 5: Nombre de coups avant prochain objectif
+		 * 6: Nombre de tours restants à l'invincibilité
+		 */
+
+		if(maze.isFood(new_x, y + action.get_vy())) {
+			features[1] = 1; // Si mange une pacgomme
+		}
+
+		if(maze.isCapsule(new_x, new_y)) {
+			features[2]=1; // Si mange une capsule
+		}
+		if(state.getNbTourInvincible()>1) { // Nombre de fantômes quand invincible
+			features[3]=countGhostsAround(new_x,new_y,state);
+		}else{ // Nombre de fantômes quand vulnérable
+			features[4]=countGhostsAround(new_x,new_y,state);
+		}
+		features[5]=nbCoupsProchainePacgomme(state,new_x,new_y); // Nombre de coups avant prochain objectif
 
 		return features;
-	}
 
-	private double calculateDistanceToNearestGhost(PacmanGame state, int nextX, int nextY) {
-		double nearestDistance = Double.MAX_VALUE;
-
-		for ( Agent ghost : state.get_agentsFantom()) {
-			int ghostX = ghost.get_position().getX();
-			int ghostY = ghost.get_position().getY();
-
-			double distance = Math.abs(nextX - ghostX) + Math.abs(nextY - ghostY);
-
-			if (distance < nearestDistance) {
-				nearestDistance = distance;
-			}
-		}
-		return nearestDistance;
 	}
 
 
 	@Override
 	public void learn(ArrayList<TrainExample> trainExamples) {
-		// Implement this method if you need to train your model based on a batch of examples
+		// pas utilisé si pas de reseaux neuronaux
 	}
 }

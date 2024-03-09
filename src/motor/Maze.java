@@ -166,9 +166,11 @@ public class Maze implements Serializable, Cloneable {
 	 * Permet de savoir si il y a un mur
 	 */
 	public boolean isWall(int x, int y) {
-		assert ((x >= 0) && (x < size_x));
-		assert ((y >= 0) && (y < size_y));
-		return (walls[x][y]);
+//		assert ((x >= 0) && (x < size_x));
+//		assert ((y >= 0) && (y < size_y));
+		if(((x >= 0) && (x < size_x)) && ((y >= 0) && (y < size_y))) return (walls[x][y]);
+		else return true;
+
 	}
 
 	/**
@@ -177,6 +179,8 @@ public class Maze implements Serializable, Cloneable {
 	public boolean isFood(int x, int y) {
 		assert ((x >= 0) && (x < size_x));
 		assert ((y >= 0) && (y < size_y));
+
+
 		return (food[x][y]);
 	}
 
