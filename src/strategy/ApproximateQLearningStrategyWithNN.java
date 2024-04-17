@@ -10,6 +10,7 @@ import neuralNetwork.TrainExample;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
@@ -28,7 +29,7 @@ public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 		this.batchSize = batchSize;
 
 
-		this.nn=new NeuralNetWorkDL4J(alpha,0,6,1);
+		this.nn=new NeuralNetWorkDL4J(alpha,0,7,1);
 	}
 
 	@Override
@@ -136,11 +137,19 @@ public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 
 	}
 
+
 	@Override
 	public void learn(ArrayList<TrainExample> trainExamples) {
+		if (trainExamples.isEmpty()) {
+			System.out.println("No training examples available, skipping learning phase.");
+			return;
+		}
 		nn.fit(trainExamples, nEpochs, batchSize,this.learningRate);
 	}
+
 	private double[] extractFeatures(PacmanGame state, AgentAction action) {
+
+
 		double[] features = new double[7];
 
 		features[0] = 1;
@@ -153,6 +162,7 @@ public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 		int new_x = x + action.get_vx();
 		int new_y = y + action.get_vy();
 
+
 		if(maze.isFood(new_x, y + action.get_vy())) {
 			features[1] = 1;
 		}
@@ -161,9 +171,9 @@ public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 			features[2]=1;
 		}
 
-		if(state.getNbTourInvincible()>1) {
+		if(state.getNbTourInvincible()>1) { // nb fantômes quand invincible
 			features[3]=countGhostsAround(new_x,new_y,state);
-		}else{
+		}else{ //nb fantômes quand vulnérable
 			features[4]=countGhostsAround(new_x,new_y,state);
 		}
 
@@ -171,8 +181,11 @@ public class ApproximateQLearningStrategyWithNN extends QLearningStrategy {
 
 		features[6]=state.getNbTourInvincible();
 
+		//features[7]=distMoyennneFantomes(state,new_x,new_y);
 
 		return features;
+
+
 	}
 
 }

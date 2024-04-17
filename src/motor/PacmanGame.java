@@ -22,7 +22,7 @@ public class PacmanGame extends Game  {
 	private static final long serialVersionUID = 1L;
 	private static final int TOUR_MAX_INVINCIBLE = 10;
 	
-	private static final int POINT_GUM = 10;
+	private static final int POINT_GUM = 25;
 	private static final int POINT_FANTOM = 50;
 	private static final int POINT_CAPSULE = 50;
 	private static final int POINT_DEAD = -100;

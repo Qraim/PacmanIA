@@ -29,7 +29,7 @@ public class main_standardMode {
 		
 		////Choix de la strategie du pacman 
 		
-		int strategyID = 1;
+		int strategyID = 2;
 		
 		// 0 : Tabular_Qlearning
 		// 1 : Approximate Qlearning with linear model
@@ -40,7 +40,7 @@ public class main_standardMode {
 		boolean nightmareMode = true;
 		
 		// Mode visualization 
-		boolean visualizationMode = false;
+		boolean visualizationMode = true;
 
 
 		
@@ -51,17 +51,17 @@ public class main_standardMode {
 		if(level == 0) {
 			
 			chemin_maze = "layout/level0.lay";
-			maxTurnPacmanGame = 15;
+			maxTurnPacmanGame = 30;
 			
 		} else if(level == 1) {
 			
 			chemin_maze = "layout/level1.lay";
-			maxTurnPacmanGame = 30;
+			maxTurnPacmanGame = 50;
 			
 		} else if(level == 2) {
 			
 			chemin_maze = "layout/level2.lay";
-			maxTurnPacmanGame = 100;
+			maxTurnPacmanGame = 150;
 		
 		}
 		
@@ -96,12 +96,12 @@ public class main_standardMode {
 			
 		} else if(strategyID == 1) {
 
-			learningRate = 0.01;
+			learningRate = 0.001;
 			strat = new ApproximateQLearningStrategy(epsilon, gamma, learningRate,  _maze.getSizeX(), _maze.getSizeY());
 			
 		} else if(strategyID == 2) {
 				
-			learningRate = 0.001;
+			learningRate = 0.0001;
 			strat = new ApproximateQLearningStrategyWithNN(epsilon, gamma, learningRate, nbEpoch, batchSize, _maze.getSizeX(), _maze.getSizeY());
 			
 		} else if(strategyID == 3) {
