@@ -19,7 +19,6 @@ public class ApproximateQLearningStrategy extends QLearningStrategy {
 		int numberOfFeatures = 6;
 		this.weights = new double[numberOfFeatures];
 
-		// Initialisation des poids avec des valeurs aléatoires entre -1 et 1
 		for (int i = 0; i < this.weights.length; i++) {
 			this.weights[i] = rand.nextDouble() * 2 - 1;
 		}
@@ -27,7 +26,7 @@ public class ApproximateQLearningStrategy extends QLearningStrategy {
 
 	@Override
 	public AgentAction chooseAction(PacmanGame state) {
-		ArrayList<AgentAction> legalActions = new ArrayList<AgentAction>(); // Actions légales possibles
+		ArrayList<AgentAction> legalActions = new ArrayList<AgentAction>();
 		Maze maze = state.getMaze(); // Le labyrinthe du jeu
 		AgentAction actionChoosen = new AgentAction(0); // Action choisie
 
@@ -39,6 +38,7 @@ public class ApproximateQLearningStrategy extends QLearningStrategy {
 				legalActions.add(action);
 			}
 		}
+
 		// Choix aléatoire d'une action si un nombre aléatoire est inférieur à epsilon (exploration)
 		if(Math.random() < this.current_epsilon){
 			actionChoosen = legalActions.get((int) Math.floor(Math.random() * legalActions.size()));
@@ -103,7 +103,6 @@ public class ApproximateQLearningStrategy extends QLearningStrategy {
 		double qValue = perceptron(weights, features); // Calcul de la valeur Q actuelle
 
 		for(int i =0; i < this.weights.length; i ++) {
-
 			// Mise à jour des poids avec le taux d'apprentissage et l'erreur (différence entre la valeur Q cible et actuelle)
 			this.weights[i] = this.weights[i] - 2*this.learningRate*features[i]*(qValue - targetQ);
 

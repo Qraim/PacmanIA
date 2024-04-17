@@ -33,17 +33,6 @@ public class TabularQLearning  extends QLearningStrategy{
 		this.sizeMazeX = sizeMazeX;
 		this.sizeMazeY = sizeMazeY;
 
-		System.out.println("sizeX labyrinth " + this.sizeMazeX);
-		System.out.println("sizeY labyrinth " + this.sizeMazeY);
-		
-		int numberCellsWithoutWall = sizeMazeX*sizeMazeY - nbWalls;
-				
-		System.out.println("NumberCells without wall " + numberCellsWithoutWall);
-
-		int numberStates =  (int) Math.pow( 4, numberCellsWithoutWall);
-
-		System.out.println("Max number different states " + numberStates);
-
 		QTable = new HashMap<>();
 
 	}
@@ -81,10 +70,12 @@ public class TabularQLearning  extends QLearningStrategy{
 	@Override
 	public AgentAction chooseAction(PacmanGame state) {
 		Random rand = new Random();
+
 		if (rand.nextDouble() < current_epsilon) {
 			ArrayList<AgentAction> legalmove = state.getLegalPacmanActions();
 			return legalmove.get(rand.nextInt(legalmove.size()));
 		} else {
+
 			String currentState = encodeState(state);
 			double[] qValues = QTable.getOrDefault(currentState, new double[]{0, 0, 0, 0});
 			int bestAction = 0;
@@ -128,7 +119,5 @@ public class TabularQLearning  extends QLearningStrategy{
 
 	@Override
 	public void learn(ArrayList<TrainExample> trainExamples) {
-
-
 	}
 }
